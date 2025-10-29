@@ -1,50 +1,22 @@
-version: '3.9'
-
+version: "3.9"
 services:
+  model-downloader:
+    build: ./model-downloader
+    environment:
+      - MODEL_DIR=${MODEL_DIR}
+    volumes:
+      - ${MODEL_DIR}:${MODEL_DIR}
+    restart: "no"
+
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    environment:
-      - OLLAMA_MODELS=${MODEL_DIR}/ollama
-      - OLLAMA_KEEP_ALIVE=24h
-    command: >
-      sh -c "
-        ollama serve &
-        sleep 5 &&
-        ollama pull ${EMBEDDING_MODEL} &&
-        ollama pull ${TTS_MODEL} &&
-        ollama pull whisper:${STT_MODEL} &&
-        wait
-      "
-    volumes:
-      - ${MODEL_DIR}/ollama:/root/.ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_MODELS=/root/.ollama
+    depends_on:
+      - model-downloader
+    volumes:
+      - ${MODEL_DIR}:/root/.ollama
     restart: unless-stopped
-
-  embedding:
-    image: curlimages/curl:latest
-    command: ["curl", "-X", "POST", "--fail", "http://ollama:11434/api/push", "-d", "{\"model\":\"${EMBEDDING_MODEL}\"}"]
-    depends_on:
-      - ollama
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-    restart: "no"
-
-  tts:
-    image: curlimages/curl:latest
-    command: ["curl", "-X", "POST", "--fail", "http://ollama:11434/api/push", "-d", "{\"model\":\"${TTS_MODEL}\"}"]
-    depends_on:
-      - ollama
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-    restart: "no"
-
-  stt:
-    image: curlimages/curl:latest
-    command: ["curl", "-X", "POST", "--fail", "http://ollama:11434/api/push", "-d", "{\"model\":\"whisper:${STT_MODEL}\"}"]
-    depends_on:
-      - ollama
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-    restart: "no"
