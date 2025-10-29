@@ -1,33 +1,50 @@
+version: '3.9'
+
 services:
-
-  whisper:
-    # ...
-    environment:
-      - MODEL_DIR=/models
-    volumes:
-      - ${MODEL_ROOT}/whisper:/models
-    command: ["--model", "base", "--model-dir", "/models"]
-
-  kokoro_tts:
-    # ...
-    environment:
-      - MODEL_DIR=/kokoro_models
-    volumes:
-      - ${MODEL_ROOT}/kokoro:/kokoro_models
-    command: ["--model-path", "/kokoro_models"]
-
-  embedding_e5:
-    # ...
-    environment:
-      - MODEL_DIR=/models
-    volumes:
-      - ${MODEL_ROOT}/e5:/models
-    command: ["--model", "intfloat/multilingual-e5-large-instruct", "--model-dir", "/models"]
-
   ollama:
-    # ...
+    image: ollama/ollama:latest
+    container_name: ollama
     environment:
-      - OLLAMA_MODELS=/root/.ollama
+      - OLLAMA_MODELS=${MODEL_DIR}/ollama
+      - OLLAMA_KEEP_ALIVE=24h
+    command: >
+      sh -c "
+        ollama serve &
+        sleep 5 &&
+        ollama pull ${EMBEDDING_MODEL} &&
+        ollama pull ${TTS_MODEL} &&
+        ollama pull whisper:${STT_MODEL} &&
+        wait
+      "
     volumes:
-      - ${MODEL_ROOT}/ollama:/root/.ollama
-    command: ["ollama", "serve"]
+      - ${MODEL_DIR}/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  embedding:
+    image: curlimages/curl:latest
+    command: ["curl", "-X", "POST", "--fail", "http://ollama:11434/api/push", "-d", "{\"model\":\"${EMBEDDING_MODEL}\"}"]
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    restart: "no"
+
+  tts:
+    image: curlimages/curl:latest
+    command: ["curl", "-X", "POST", "--fail", "http://ollama:11434/api/push", "-d", "{\"model\":\"${TTS_MODEL}\"}"]
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    restart: "no"
+
+  stt:
+    image: curlimages/curl:latest
+    command: ["curl", "-X", "POST", "--fail", "http://ollama:11434/api/push", "-d", "{\"model\":\"whisper:${STT_MODEL}\"}"]
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    restart: "no"
