@@ -1,9 +1,14 @@
 # docker-compose.dokploy.override.yml
 services:
+  download_models:
+    networks:
+      - dokploy-network 
   ollama:
     networks:
       - dokploy-network 
-
+  ollama-webui:
+    networks:
+      - dokploy-network 
 networks:
   dokploy-network:
     external: true
