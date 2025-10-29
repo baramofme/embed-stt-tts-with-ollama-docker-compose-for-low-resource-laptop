@@ -1,13 +1,31 @@
-version: "3.9"
+version: "3.8"
+
 services:
+  # STEP 1: 모델 파일을 지정 경로에 미리 다운로드
   model-downloader:
-    build: ./model-downloader
+    image: debian:bullseye-slim
+    container_name: model-downloader
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        apt update &&
+        apt install -y curl &&
+        mkdir -p $MODEL_DIR &&
+        cd $MODEL_DIR &&
+        # Ollama 모델 직접 다운로드 - jeffh/intfloat-multilingual-e5-large-instruct
+        curl -L -o "intfloat-multilingual-e5-large-instruct_q8_0.ollama" "https://ollama.com/jeffh/intfloat-multilingual-e5-large-instruct/q8_0/model" &&
+        # Whisper:base
+        curl -L -o "whisper-base.ollama" "https://ollama.com/whisper/base/model" &&
+        # Kokoro-82M
+        curl -L -o "kokoro-82m.ollama" "https://ollama.com/kokoro-82m/model" &&
+        ls -lh $MODEL_DIR
     environment:
       - MODEL_DIR=${MODEL_DIR}
     volumes:
       - ${MODEL_DIR}:${MODEL_DIR}
     restart: "no"
-
+  
+  # STEP 2: ollama 서버 세팅 - 모델 디렉터리 지정
   ollama:
     image: ollama/ollama:latest
     ports:
