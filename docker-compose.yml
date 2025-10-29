@@ -1,36 +1,56 @@
-version: '3'
-
+version: '3.8'
 services:
   ollama:
     image: ollama/ollama:latest
-    container_name: ollama
     ports:
-      - "11434:11434"
+      - 11434:11434
+    environment:
+      - OLLAMA_MODELS=${OLLAMA_MODELS}
+      - OLLAMA_MODELS_PATH=${MODEL_DIR}/ollama
+    command: >
+      bash -c "
+        set -e
+        mkdir -p ${MODEL_DIR}/ollama
+        ollama serve &
+        sleep 5
+        ollama pull $${OLLAMA_MODELS}
+        wait
+      "
     volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
-    # Ollama 시작시 모델 자동 pull 명령 실행(설치)
-    entrypoint: /bin/bash -c "ollama serve & sleep 5 && ollama pull jeffh/intfloat-multilingual-e5-large-instruct && ollama pull kokoro:82m && ollama pull whisper:base && wait"
-    # 모델 이름은 실제 Ollama 등록명을 확인 필요 (`kokoro:82m` 등은 예시, 최신 모델명 확인)
-    
-  kokoro-fastapi:
-    image: remsky/kokoro-fastapi:latest
-    container_name: kokoro
+      - ${MODEL_DIR}/ollama:/root/.ollama
+
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi:latest
+    environment:
+      - KOKORO_MODEL_PATH=${MODEL_DIR}/kokoro
+      - KOKORO_MODEL=${KOKORO_MODEL}
+    command: >
+      bash -c "
+        set -e
+        mkdir -p ${MODEL_DIR}/kokoro
+        python3 download_kokoro.py --model $${KOKORO_MODEL} --output ${MODEL_DIR}/kokoro
+        uvicorn main:app --host 0.0.0.0 --port 8002
+      "
     ports:
-      - "5001:5001"
-    restart: unless-stopped
-    # 별도 REST TTS API 용 공식 kokoro-fastapi 이미지
-    # 실제 FastAPI 로 제공
+      - 8002:8000
+    volumes:
+      - ${MODEL_DIR}/kokoro:${MODEL_DIR}/kokoro
 
   whisper:
-    build:
-      context: ./whisper
-      dockerfile: Dockerfile
-    container_name: whisper
+    image: ghcr.io/ggerganov/whisper.cpp:latest
+    command: >
+      bash -c "
+        mkdir -p ${MODEL_DIR}/whisper;
+        if [ ! -f ${MODEL_DIR}/whisper/${WHISPER_MODEL}.bin ]; then
+          ./models/download-ggml-model.sh $${WHISPER_MODEL};
+          mv ./models/$${WHISPER_MODEL}.bin ${MODEL_DIR}/whisper/;
+        fi;
+        ./main --model ${MODEL_DIR}/whisper/${WHISPER_MODEL}.bin --language ko --help
+      "
+    environment:
+      - WHISPER_MODEL=${WHISPER_MODEL}
+      - WHISPER_MODEL_PATH=${MODEL_DIR}/whisper
+    volumes:
+      - ${MODEL_DIR}/whisper:${MODEL_DIR}/whisper
     ports:
-      - "9000:9000"
-    restart: unless-stopped
-    # whisper 컨테이너 예시 (커스텀 빌드 필요, 아래 Dockerfile 참고)
-
-volumes:
-  ollama_data:
+      - 8003:8080
