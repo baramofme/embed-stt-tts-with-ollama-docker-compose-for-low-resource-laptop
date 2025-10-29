@@ -1,52 +1,33 @@
-version: "3.8"
-
 services:
 
   whisper:
-    container_name: whisper
-    image: ghcr.io/openai/whisper:latest
+    # ...
     environment:
-      - MODEL_DIR=${MODEL_ROOT}/whisper
-      - WHISPER_MODEL_SIZE=base
+      - MODEL_DIR=/models
     volumes:
       - ${MODEL_ROOT}/whisper:/models
     command: ["--model", "base", "--model-dir", "/models"]
-    restart: unless-stopped
 
   kokoro_tts:
-    container_name: kokoro
-    image: rchclang/kokoro-tts:latest
+    # ...
     environment:
-      - MODEL_DIR=${MODEL_ROOT}/kokoro
+      - MODEL_DIR=/kokoro_models
     volumes:
       - ${MODEL_ROOT}/kokoro:/kokoro_models
     command: ["--model-path", "/kokoro_models"]
-    restart: unless-stopped
-    depends_on:
-      - whisper
 
   embedding_e5:
-    container_name: embedding_e5
-    image: oyahiroki/nlp4j-llm-embeddings-e5:1.0.0.0
+    # ...
     environment:
-      - MODEL_DIR=${MODEL_ROOT}/e5
-      - E5_MODEL=intfloat/multilingual-e5-large-instruct
+      - MODEL_DIR=/models
     volumes:
       - ${MODEL_ROOT}/e5:/models
     command: ["--model", "intfloat/multilingual-e5-large-instruct", "--model-dir", "/models"]
-    restart: unless-stopped
-    depends_on:
-      - kokoro_tts
 
   ollama:
-    container_name: ollama
-    image: ollama/ollama:latest
+    # ...
     environment:
-      - OLLAMA_MODELS=${MODEL_ROOT}/ollama
+      - OLLAMA_MODELS=/root/.ollama
     volumes:
       - ${MODEL_ROOT}/ollama:/root/.ollama
     command: ["ollama", "serve"]
-    restart: unless-stopped
-    depends_on:
-      - embedding_e5
-
