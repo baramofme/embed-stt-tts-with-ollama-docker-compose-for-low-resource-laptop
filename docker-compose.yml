@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Ollama 시작시 모델 자동 pull 명령 실행(설치)
+    entrypoint: /bin/bash -c "ollama serve & sleep 5 && ollama pull jeffh/intfloat-multilingual-e5-large-instruct && ollama pull kokoro:82m && ollama pull whisper:base && wait"
+    # 모델 이름은 실제 Ollama 등록명을 확인 필요 (`kokoro:82m` 등은 예시, 최신 모델명 확인)
+    
+  kokoro-fastapi:
+    image: remsky/kokoro-fastapi:latest
+    container_name: kokoro
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    # 별도 REST TTS API 용 공식 kokoro-fastapi 이미지
+    # 실제 FastAPI 로 제공
+
+  whisper:
+    build:
+      context: ./whisper
+      dockerfile: Dockerfile
+    container_name: whisper
+    ports:
+      - "9000:9000"
+    restart: unless-stopped
+    # whisper 컨테이너 예시 (커스텀 빌드 필요, 아래 Dockerfile 참고)
+
+volumes:
+  ollama_data:
