@@ -1,0 +1,9 @@
+# docker-compose.dokploy.override.yml
+services:
+  ollama:
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
